@@ -170,6 +170,38 @@ body::before {
   text-shadow: 2px 2px 4px var(--shadow);
 }
 
+/* Sound Toggle Button */
+.sound-toggle {
+  background: linear-gradient(135deg, var(--jungle-medium), var(--jungle-light));
+  border: 2px solid var(--accent-yellow);
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  font-size: 1.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.sound-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 15px var(--shadow);
+  background: linear-gradient(135deg, var(--jungle-light), var(--jungle-bright));
+}
+
+.sound-toggle:active {
+  transform: scale(0.95);
+}
+
+.sound-toggle.muted {
+  background: linear-gradient(135deg, var(--earth-medium), var(--earth-dark));
+  border-color: var(--accent-red);
+}
+
 /* Canvas Container */
 .canvas-container {
   position: relative;

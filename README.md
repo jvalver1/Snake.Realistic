@@ -227,7 +227,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## 👨‍💻 Author
 
-Created with ❤️ by [Your Name]
+Created with ❤️ by Montykona with the help of Antigravity AI (Claude Sonnet 4.5)
 
 ## 🙏 Acknowledgments
 

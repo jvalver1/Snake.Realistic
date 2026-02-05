@@ -53,6 +53,147 @@ const images = {
   loaded: false,
 };
 
+// Audio Manager (Web Audio API)
+const AudioManager = {
+  context: null,
+  enabled: true,
+
+  // Initialize audio context
+  init() {
+    try {
+      this.context = new (window.AudioContext || window.webkitAudioContext)();
+      // Load sound preference from localStorage
+      const savedPreference = localStorage.getItem("jungleSnakeSoundEnabled");
+      this.enabled = savedPreference === null ? true : savedPreference === "true";
+    } catch (e) {
+      console.warn("Web Audio API not supported", e);
+      this.enabled = false;
+    }
+  },
+
+  // Toggle sound on/off
+  toggle() {
+    this.enabled = !this.enabled;
+    localStorage.setItem("jungleSnakeSoundEnabled", this.enabled);
+    return this.enabled;
+  },
+
+  // Play eat sound (pleasant pop/chomp)
+  playEat() {
+    if (!this.enabled || !this.context) return;
+
+    const now = this.context.currentTime;
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.context.destination);
+
+    // Bright, pleasant tone
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(800, now);
+    oscillator.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+
+    gainNode.gain.setValueAtTime(0.3, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.15);
+  },
+
+  // Play level up sound (ascending celebration)
+  playLevelUp() {
+    if (!this.enabled || !this.context) return;
+
+    const now = this.context.currentTime;
+    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+
+    notes.forEach((freq, index) => {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.context.destination);
+
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(freq, now + index * 0.15);
+
+      gainNode.gain.setValueAtTime(0.2, now + index * 0.15);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + index * 0.15 + 0.3);
+
+      oscillator.start(now + index * 0.15);
+      oscillator.stop(now + index * 0.15 + 0.3);
+    });
+  },
+
+  // Play game over sound (descending tones)
+  playGameOver() {
+    if (!this.enabled || !this.context) return;
+
+    const now = this.context.currentTime;
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.context.destination);
+
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(400, now);
+    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.6);
+
+    gainNode.gain.setValueAtTime(0.25, now);
+    gainNode.gain.setValueAtTime(0.25, now + 0.5);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.8);
+  },
+
+  // Play subtle background ambience (optional jungle sounds)
+  playBackgroundMusic() {
+    if (!this.enabled || !this.context) return;
+
+    // Create subtle ambient drone
+    const now = this.context.currentTime;
+    const oscillator1 = this.context.createOscillator();
+    const oscillator2 = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(this.context.destination);
+
+    // Low frequency ambient tones
+    oscillator1.type = "sine";
+    oscillator1.frequency.setValueAtTime(110, now); // A2
+    oscillator2.type = "sine";
+    oscillator2.frequency.setValueAtTime(165, now); // E3
+
+    gainNode.gain.setValueAtTime(0.05, now); // Very subtle
+
+    oscillator1.start(now);
+    oscillator2.start(now);
+
+    // Store reference for stopping later
+    this.backgroundOscillators = [oscillator1, oscillator2];
+  },
+
+  // Stop background music
+  stopBackgroundMusic() {
+    if (this.backgroundOscillators) {
+      this.backgroundOscillators.forEach((osc) => {
+        try {
+          osc.stop();
+        } catch (e) {
+          // Already stopped
+        }
+      });
+      this.backgroundOscillators = null;
+    }
+  },
+};
+
 // Initialize Game
 function init() {
   CONFIG.canvas = document.getElementById("gameCanvas");
@@ -68,12 +209,19 @@ function init() {
   // Load images
   loadImages();
 
+  // Initialize audio
+  AudioManager.init();
+
   // Event Listeners
   document.getElementById("startButton").addEventListener("click", startGame);
   document
     .getElementById("restartButton")
     .addEventListener("click", restartGame);
   document.addEventListener("keydown", handleKeyPress);
+  document.getElementById("soundToggle").addEventListener("click", toggleSound);
+
+  // Update sound button UI
+  updateSoundButton();
 }
 
 // Load Realistic Images
@@ -175,6 +323,7 @@ function update() {
   // Check food collision
   if (head.x === gameState.food.x && head.y === gameState.food.y) {
     gameState.score += 10;
+    AudioManager.playEat(); // Play eat sound
     updateUI();
     spawnFood();
     checkLevelUp();
@@ -864,6 +1013,7 @@ function checkLevelUp() {
 
   if (newLevel > gameState.level) {
     gameState.level = newLevel;
+    AudioManager.playLevelUp(); // Play level up sound
     const levelConfig = getCurrentLevel();
     spawnObstacles(levelConfig.obstacles);
     updateUI();
@@ -945,6 +1095,8 @@ function gameOver() {
   gameState.isRunning = false;
   clearTimeout(gameState.gameLoop);
 
+  AudioManager.playGameOver(); // Play game over sound
+
   // Update high score
   if (gameState.score > gameState.highScore) {
     gameState.highScore = gameState.score;
@@ -957,6 +1109,26 @@ function gameOver() {
   document.getElementById("gameOverScreen").classList.remove("hidden");
 
   updateUI();
+}
+
+// Toggle Sound
+function toggleSound() {
+  const isEnabled = AudioManager.toggle();
+  updateSoundButton();
+}
+
+// Update Sound Button UI
+function updateSoundButton() {
+  const button = document.getElementById("soundToggle");
+  if (AudioManager.enabled) {
+    button.textContent = "🔊";
+    button.classList.remove("muted");
+    button.title = "Sound On (Click to Mute)";
+  } else {
+    button.textContent = "🔇";
+    button.classList.add("muted");
+    button.title = "Sound Off (Click to Unmute)";
+  }
 }
 
 // Initialize game when page loads
